@@ -9,6 +9,9 @@ from datetime import datetime, timedelta
 from pprint import pprint
 from typing import AsyncIterator
 
+from frequenz.client.base.authentication import AuthenticationOptions
+from frequenz.client.base.channel import ChannelOptions
+from frequenz.client.base.signing import SigningOptions
 from frequenz.client.common.metric import Metric
 
 from frequenz.client.reporting import ReportingApiClient
@@ -85,6 +88,12 @@ def main() -> None:
         help="API key",
         default=None,
     )
+    parser.add_argument(
+        "--secret",
+        type=str,
+        help="The secret for the reporting service",
+        default=None,
+    )
     args = parser.parse_args()
     asyncio.run(
         run(
@@ -99,6 +108,7 @@ def main() -> None:
             service_address=args.url,
             key=args.key,
             fmt=args.format,
+            secret=args.secret,
         )
     )
 
@@ -116,6 +126,7 @@ async def run(  # noqa: DOC502
     bounds: bool,
     service_address: str,
     key: str,
+    secret: str,
     fmt: str,
 ) -> None:
     """Test the ReportingApiClient.
@@ -130,13 +141,19 @@ async def run(  # noqa: DOC502
         states: include states in the output
         bounds: include bounds in the output
         service_address: service address
-        key: API key
+        key: API key (per customer)
+        secret: cryptographic secret of the service (per API)
         fmt: output format
 
     Raises:
         ValueError: if output format is invalid
     """
-    client = ReportingApiClient(service_address, key)
+    auth = AuthenticationOptions(key)
+    sign = SigningOptions(secret)
+
+    channel_options = ChannelOptions(auth=auth, sign=sign)
+
+    client = ReportingApiClient(service_address, key, channel_defaults=channel_options)
 
     metrics = [Metric[mn] for mn in metric_names]
 
